@@ -10,7 +10,7 @@ base:
   quality: 100
 global:
   focal_length:
-    use_equivalent_focal_length: false
+    use_equivalent_focal_length: true
   padding_with_original_ratio:
     enable: false
   shadow:
@@ -24,11 +24,11 @@ layout:
     left_bottom:
       color: '#757575'
       is_bold: false
-      name: Model
+      name: Param
     left_top:
       color: '#212121'
       is_bold: true
-      name: LensModel
+      name: Model
     right_bottom:
       color: '#757575'
       is_bold: false
@@ -37,10 +37,11 @@ layout:
     right_top:
       color: '#212121'
       is_bold: true
-      name: Param
-  logo_enable: false
+      name: Custom
+      value: "PiggyWu\xA9"
+  logo_enable: true
   logo_position: left
-  type: watermark_right_logo
+  type: background_blur_with_params
 logo:
   default:
     id: ''
