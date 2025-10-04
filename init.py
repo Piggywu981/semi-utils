@@ -5,6 +5,7 @@ from pathlib import Path
 
 from entity.config import Config
 from entity.image_processor import BackgroundBlurProcessor
+from entity.image_processor import BackgroundBlurWithParamsProcessor
 from entity.image_processor import BackgroundBlurWithWhiteBorderProcessor
 from entity.image_processor import CustomWatermarkProcessor
 from entity.image_processor import DarkWatermarkLeftLogoProcessor
@@ -83,6 +84,7 @@ SIMPLE_PROCESSOR = SimpleProcessor(config)
 PADDING_TO_ORIGINAL_RATIO_PROCESSOR = PaddingToOriginalRatioProcessor(config)
 BACKGROUND_BLUR_PROCESSOR = BackgroundBlurProcessor(config)
 BACKGROUND_BLUR_WITH_WHITE_BORDER_PROCESSOR = BackgroundBlurWithWhiteBorderProcessor(config)
+BACKGROUND_BLUR_WITH_PARAMS_PROCESSOR = BackgroundBlurWithParamsProcessor(config)
 PURE_WHITE_MARGIN_PROCESSOR = PureWhiteMarginProcessor(config)
 
 """
@@ -107,6 +109,7 @@ LAYOUT_ITEMS = [
     LayoutItem.from_processor(SIMPLE_PROCESSOR),
     LayoutItem.from_processor(BACKGROUND_BLUR_PROCESSOR),
     LayoutItem.from_processor(BACKGROUND_BLUR_WITH_WHITE_BORDER_PROCESSOR),
+    LayoutItem.from_processor(BACKGROUND_BLUR_WITH_PARAMS_PROCESSOR),
     LayoutItem.from_processor(PURE_WHITE_MARGIN_PROCESSOR),
 ]
 layout_items_dict = {item.value: item for item in LAYOUT_ITEMS}

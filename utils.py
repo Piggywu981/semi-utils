@@ -7,6 +7,7 @@ from pathlib import Path
 
 from PIL import Image
 from PIL import ImageDraw
+from PIL import ImageFilter
 from PIL import ImageOps
 
 from enums.constant import TRANSPARENT
@@ -398,3 +399,71 @@ def extract_gps_lat_and_long(lat: str, long: str):
 def extract_gps_info(gps_info: str):
     lat, long = gps_info.split(", ")
     return extract_gps_lat_and_long(lat, long)
+
+
+def add_rounded_corners(image, radius):
+    """
+    为图片添加圆角效果
+    
+    :param image: 图片对象
+    :param radius: 圆角半径
+    :return: 添加圆角后的图片对象
+    """
+    # 创建一个与原图大小相同的透明背景
+    rounded_img = Image.new("RGBA", image.size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(rounded_img)
+    
+    # 绘制圆角矩形
+    draw.rounded_rectangle(
+        [(0, 0), image.size],
+        radius=radius,
+        fill=(255, 255, 255, 255)
+    )
+    
+    # 如果原图不是RGBA模式，转换为RGBA模式
+    if image.mode != "RGBA":
+        image = image.convert("RGBA")
+    
+    # 将原图与圆角矩形蒙版合并
+    rounded_img.paste(image, mask=rounded_img)
+    
+    return rounded_img
+
+
+def add_soft_shadow(image, radius=15, offset=(5, 5), opacity=128):
+    """
+    为图片添加柔滑的黑色阴影效果，以增强层次感
+    
+    :param image: 图片对象
+    :param radius: 阴影模糊半径
+    :param offset: 阴影偏移量 (x, y)
+    :param opacity: 阴影不透明度 (0-255)
+    :return: 添加阴影后的图片对象
+    """
+    # 创建一个比原图大的透明背景，以容纳阴影
+    shadow_width = image.width + radius * 2
+    shadow_height = image.height + radius * 2
+    result = Image.new("RGBA", (shadow_width, shadow_height), (0, 0, 0, 0))
+    
+    # 创建阴影
+    shadow_layer = Image.new("RGBA", (shadow_width, shadow_height), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(shadow_layer)
+    
+    # 绘制阴影（黑色半透明）
+    shadow_x = radius + offset[0]
+    shadow_y = radius + offset[1]
+    draw.rectangle(
+        [(shadow_x, shadow_y), (shadow_x + image.width, shadow_y + image.height)],
+        fill=(0, 0, 0, opacity)
+    )
+    
+    # 应用高斯模糊使阴影变柔滑
+    shadow_layer = shadow_layer.filter(ImageFilter.GaussianBlur(radius=radius))
+    
+    # 将阴影层与结果层合并
+    result.paste(shadow_layer, (0, 0), shadow_layer)
+    
+    # 将原图放置在结果层上，调整位置以匹配阴影
+    result.paste(image, (radius - offset[0], radius - offset[1]), image)
+    
+    return result

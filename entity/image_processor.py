@@ -16,6 +16,8 @@ from utils import resize_image_with_height
 from utils import resize_image_with_width
 from utils import square_image
 from utils import text_to_image
+from utils import add_rounded_corners
+from utils import add_soft_shadow
 
 printable = set(string.printable)
 
@@ -358,7 +360,7 @@ class PaddingToOriginalRatioProcessor(ProcessorComponent):
 
 
 PADDING_PERCENT_IN_BACKGROUND = 0.18
-GAUSSIAN_KERNEL_RADIUS = 35
+GAUSSIAN_KERNEL_RADIUS = 75
 
 
 class BackgroundBlurProcessor(ProcessorComponent):
@@ -407,3 +409,117 @@ class PureWhiteMarginProcessor(ProcessorComponent):
         padding_size = int(config.get_white_margin_width() * min(container.get_width(), container.get_height()) / 100)
         padding_img = padding_image(container.get_watermark_img(), padding_size, 'tlrb', color=config.bg_color)
         container.update_watermark_img(padding_img)
+
+
+class BackgroundBlurWithParamsProcessor(ProcessorComponent):
+    LAYOUT_ID = 'background_blur_with_params'
+    LAYOUT_NAME = '背景模糊+参数'
+
+    def process(self, container: ImageContainer) -> None:
+        # 计算参数区域高度（约为原图高度的8%）
+        params_area_height = int(container.get_height() * 0.08)
+        
+        # 计算总尺寸和留白
+        final_width = int(container.get_width() * (1 + PADDING_PERCENT_IN_BACKGROUND))
+        final_height = int(container.get_height() * (1 + PADDING_PERCENT_IN_BACKGROUND)) + params_area_height
+        total_padding_height = int(container.get_height() * PADDING_PERCENT_IN_BACKGROUND)
+        top_padding = total_padding_height // 10  # 上留白约为总留白的1/4
+        bottom_padding = total_padding_height - top_padding
+        
+        # 创建一体化背景模糊图像（包含整个区域）
+        # 先创建一个放大的原图作为基础
+        enlarged_img = container.get_watermark_img().resize((final_width, final_height), Image.LANCZOS)
+        
+        # 对整个区域应用模糊效果
+        background = enlarged_img.filter(ImageFilter.GaussianBlur(radius=GAUSSIAN_KERNEL_RADIUS))
+        fg = Image.new('RGB', background.size, color=(255, 255, 255))
+        background = Image.blend(background, fg, 0.1)
+        
+        # 获取相机名称和参数文本
+        model_text = container.get_model()
+        param_text = container.get_param_str()
+        
+        # 创建文本图像（相机名称和参数文本）
+        # 相机名称使用粗体，灰白色
+        model_image = text_to_image(model_text,
+                                    self.config.get_font(),
+                                    self.config.get_bold_font(),
+                                    is_bold=True,
+                                    fill='#F5F5F5')  # 接近纯白的灰白色
+        
+        # 参数文本使用常规字重，灰白色
+        param_image = text_to_image(param_text,
+                                    self.config.get_font(),
+                                    self.config.get_bold_font(),
+                                    is_bold=False,
+                                    fill='#F5F5F5')  # 接近纯白的灰白色
+        
+        # 计算最大允许的文本宽度（原图宽度的3/4）
+        max_text_width = int(container.get_width() * 0.75)
+        
+        # 计算文本区域总高度（相机名称+参数+间距）
+        total_text_height = model_image.height + param_image.height + 10
+        
+        # 计算统一的缩放因子，考虑参数区域高度和最大宽度限制
+        if total_text_height > 0:
+            # 基于参数区域高度的缩放因子
+            height_scale = params_area_height / total_text_height
+            
+            # 基于最大宽度的缩放因子
+            max_text_image_width = max(model_image.width, param_image.width)
+            width_scale = max_text_width / max_text_image_width if max_text_image_width > 0 else 1.0
+            
+            # 取较小的缩放因子以确保同时满足高度和宽度限制
+            scale_factor = min(height_scale, width_scale)
+            
+            # 使用统一的缩放因子对两个文本图像进行缩放
+            if model_image.height > 0:
+                model_image = model_image.resize((int(model_image.width * scale_factor), 
+                                                  int(model_image.height * scale_factor)), 
+                                                 Image.LANCZOS)
+            
+            if param_image.height > 0:
+                param_image = param_image.resize((int(param_image.width * scale_factor), 
+                                                  int(param_image.height * scale_factor)), 
+                                                 Image.LANCZOS)
+        
+        # 计算文本位置（垂直和水平居中）
+        total_text_height = model_image.height + param_image.height + 10  # 10像素间距
+        # 在参数区域中垂直居中
+        start_y = final_height - params_area_height + (params_area_height - total_text_height) // 2 - top_padding
+        
+        # 放置相机名称（水平居中）
+        model_x = (final_width - model_image.width) // 2
+        model_y = start_y
+        background.paste(model_image, (model_x, model_y), model_image)
+        
+        # 放置参数文本（水平居中，在相机名称下方）
+        param_x = (final_width - param_image.width) // 2
+        param_y = start_y - model_image.height + 10
+        background.paste(param_image, (param_x, param_y), param_image)
+        
+        # 放置原图（在背景模糊图像上方，上移）
+        original_img = container.get_watermark_img()
+        
+        # 为原图添加圆角效果，圆角半径设置为原图宽度的1%
+        rounded_radius = int(container.get_width() * 0.01)
+        rounded_img = add_rounded_corners(original_img, rounded_radius)
+        
+        # 为圆角后的原图添加柔滑的黑色阴影效果
+        # 阴影参数：模糊半径为15，偏移量为(5,5)，不透明度为128
+        shadow_img = add_soft_shadow(rounded_img, radius=15, offset=(5, 5), opacity=128)
+        
+        # 计算添加阴影后的原图位置
+        original_x = int(container.get_width() * PADDING_PERCENT_IN_BACKGROUND / 2) - 15 + 5
+        original_y = int(container.get_height() * PADDING_PERCENT_IN_BACKGROUND / 2) - top_padding - 15 + 5
+        
+        # 将带阴影的图片粘贴到背景上
+        background.paste(shadow_img, (original_x, original_y), shadow_img)
+        
+        # 清理资源
+        model_image.close()
+        param_image.close()
+        enlarged_img.close()
+        fg.close()
+        
+        container.update_watermark_img(background)

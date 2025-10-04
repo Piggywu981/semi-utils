@@ -201,7 +201,7 @@ class ImageContainer(object):
         组合拍摄参数，输出一个字符串
         :return: 拍摄参数字符串
         """
-        focal_length = self.focal_length_in_35mm_film if self.use_equivalent_focal_length else self.focal_length
+        focal_length = self.focal_length_in_35mm_film if self.use_equivalent_focal_length and self.focal_length_in_35mm_film != "--" else self.focal_length
         return '  '.join([str(focal_length) + 'mm', 'f/' + self.f_number, self.exposure_time,
                           'ISO' + str(self.iso)])
 
