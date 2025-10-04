@@ -506,12 +506,14 @@ class BackgroundBlurWithParamsProcessor(ProcessorComponent):
         rounded_img = add_rounded_corners(original_img, rounded_radius)
         
         # 为圆角后的原图添加柔滑的黑色阴影效果
-        # 阴影参数：模糊半径为15，偏移量为(5,5)，不透明度为128
-        shadow_img = add_soft_shadow(rounded_img, radius=15, offset=(5, 5), opacity=128)
+        # 阴影参数：模糊半径为50，不透明度为128
+        shadow_img = add_soft_shadow(rounded_img, radius=50, opacity=256)
         
         # 计算添加阴影后的原图位置
-        original_x = int(container.get_width() * PADDING_PERCENT_IN_BACKGROUND / 2) - 15 + 5
-        original_y = int(container.get_height() * PADDING_PERCENT_IN_BACKGROUND / 2) - top_padding - 15 + 5
+        # 阴影边缘留出足够空间，确保阴影效果完整显示
+        shadow_margin = 50 * 2  # 阴影半径的2倍
+        original_x = int(container.get_width() * PADDING_PERCENT_IN_BACKGROUND / 2) - shadow_margin
+        original_y = int(container.get_height() * PADDING_PERCENT_IN_BACKGROUND / 2) - top_padding - shadow_margin
         
         # 将带阴影的图片粘贴到背景上
         background.paste(shadow_img, (original_x, original_y), shadow_img)
@@ -519,6 +521,9 @@ class BackgroundBlurWithParamsProcessor(ProcessorComponent):
         # 清理资源
         model_image.close()
         param_image.close()
+        original_img.close()
+        rounded_img.close()
+        shadow_img.close()
         enlarged_img.close()
         fg.close()
         

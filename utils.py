@@ -430,40 +430,45 @@ def add_rounded_corners(image, radius):
     return rounded_img
 
 
-def add_soft_shadow(image, radius=15, offset=(5, 5), opacity=128):
+def add_soft_shadow(image, radius=25, opacity=128):
     """
-    为图片添加柔滑的黑色阴影效果，以增强层次感
+    为图片四周都添加由内向外逐渐变淡的柔滑黑色阴影效果，以增强层次感
     
     :param image: 图片对象
-    :param radius: 阴影模糊半径
-    :param offset: 阴影偏移量 (x, y)
+    :param radius: 阴影模糊半径，控制阴影的扩散范围和柔和度
     :param opacity: 阴影不透明度 (0-255)
     :return: 添加阴影后的图片对象
     """
-    # 创建一个比原图大的透明背景，以容纳阴影
-    shadow_width = image.width + radius * 2
-    shadow_height = image.height + radius * 2
+    # 创建一个比原图大的透明背景，以容纳四周扩散的阴影
+    # 阴影半径的2倍，确保阴影有足够的空间扩散
+    shadow_margin = radius * 2
+    shadow_width = image.width + shadow_margin * 2
+    shadow_height = image.height + shadow_margin * 2
     result = Image.new("RGBA", (shadow_width, shadow_height), (0, 0, 0, 0))
     
-    # 创建阴影
+    # 创建阴影层
     shadow_layer = Image.new("RGBA", (shadow_width, shadow_height), (0, 0, 0, 0))
     draw = ImageDraw.Draw(shadow_layer)
     
-    # 绘制阴影（黑色半透明）
-    shadow_x = radius + offset[0]
-    shadow_y = radius + offset[1]
+    # 绘制阴影基础形状（位于中心位置）
+    # 不使用偏移，确保阴影均匀分布在四周
+    shadow_x = shadow_margin
+    shadow_y = shadow_margin
     draw.rectangle(
         [(shadow_x, shadow_y), (shadow_x + image.width, shadow_y + image.height)],
         fill=(0, 0, 0, opacity)
     )
     
-    # 应用高斯模糊使阴影变柔滑
+    # 应用高斯模糊使阴影变柔滑并向四周扩散
+    # 多次应用模糊可以获得更柔和的效果
     shadow_layer = shadow_layer.filter(ImageFilter.GaussianBlur(radius=radius))
+    # 再次应用模糊以增强由内向外的渐变效果
+    shadow_layer = shadow_layer.filter(ImageFilter.GaussianBlur(radius=radius//2))
     
     # 将阴影层与结果层合并
     result.paste(shadow_layer, (0, 0), shadow_layer)
     
-    # 将原图放置在结果层上，调整位置以匹配阴影
-    result.paste(image, (radius - offset[0], radius - offset[1]), image)
+    # 将原图放置在结果层的中心位置
+    result.paste(image, (shadow_margin, shadow_margin), image)
     
     return result
